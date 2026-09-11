@@ -1,0 +1,2 @@
+[console_scripts]
+tele = telelang.cli.main:main

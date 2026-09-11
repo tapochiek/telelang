@@ -1,0 +1,72 @@
+Metadata-Version: 2.4
+Name: telelang
+Version: 0.1.0
+Summary: Язык программирования для создания Telegram-ботов и юзерботов
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: aiogram>=3.0.0
+Requires-Dist: python-dotenv>=1.0.0
+
+# TeleLang (Этап 1 — MVP)
+
+**TeleLang** — предметно-ориентированный язык программирования (DSL), созданный для предельно простой разработки Telegram-ботов и юзерботов.
+
+---
+
+## Минимальный пример бота (01_hello_bot.tl)
+
+```telelang
+bot "MyBot"
+
+command "/start" {
+    send "Привет!"
+}
+```
+
+---
+
+## Установка и запуск
+
+### 1. Установка пакета в режиме разработки
+```bash
+cd C:\Users\tapo4ek\.gemini\antigravity\scratch\telelang
+pip install -e .
+```
+
+### 2. Проверка кода без запуска (`tele check`)
+```bash
+tele check examples/01_hello_bot.tl
+```
+
+### 3. Компиляция в чистый Python / aiogram (`tele build`)
+```bash
+tele build examples/01_hello_bot.tl
+```
+Сгенерированный файл будет сохранён в `examples/generated/01_hello_bot.py`.
+
+### 4. Запуск бота (`tele run`)
+
+**Способ A — с флагом `--token`:**
+```bash
+tele run examples/01_hello_bot.tl --token "ВАШ_ТОКЕН_БОТА"
+```
+
+**Способ B — через файл `.env`:**
+Создайте файл `.env` в корне проекта или рядом с `.tl`-файлом:
+```env
+BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+```
+И выполните:
+```bash
+tele run examples/01_hello_bot.tl
+```
+
+---
+
+## Архитектура MVP
+- **Лексер (`telelang.lexer`):** токенизация исходного кода с отслеживанием номеров строк, колонок и длин фрагментов.
+- **Парсер (`telelang.parser`):** рекурсивный спуск, построение строго типизированного AST-дерева (`Program`, `BotDecl`, `CommandDecl`, `SendStmt`).
+- **Семантический анализатор (`telelang.semantic`):** валидация обязательного объявления бота, проверка команд, недопущение конфликтов `bot`/`userbot`.
+- **Генератор кода (`telelang.codegen`):** транспиляция AST в асинхронный код на `aiogram 3.x` с поддержкой `Router`, `Dispatcher` и `Command`.
+- **Конфигурация секретов (`telelang.runtime.config`):** приоритет разрешения токена: CLI (`--token`) → код `.tl` → `.env` → переменные ОС.
+- **CLI (`telelang.cli`):** консольная утилита `tele` с командами `run`, `check`, `build`.
