@@ -392,7 +392,7 @@ class PythonEmitter:
         return lines
 
     def _emit_user_function(self, fn: FunctionDecl) -> list[str]:
-        param_list = ["_msg_target=None", "_user=None"] + fn.params
+        param_list = list(fn.params) + ["_msg_target=None", "_user=None"]
         params_str = ", ".join(param_list)
 
         lines = [
@@ -512,7 +512,7 @@ class PythonEmitter:
         ]
 
         args_str = ", ".join([self._emit_expression(a) for a in call_expr.args])
-        call_args = "_msg_target, _user=user" + (f", {args_str}" if args_str else "")
+        call_args = (f"{args_str}, " if args_str else "") + "_msg_target=_msg_target, _user=user"
         call_line = f"    await {call_expr.func_name}({call_args})"
         lines.append(call_line)
         return lines
@@ -796,7 +796,7 @@ class PythonEmitter:
 
         if isinstance(expr, FunctionCallExpr):
             args_codes = [self._emit_expression(a) for a in expr.args]
-            all_args = ["_msg_target", "_user=user"] + args_codes
+            all_args = args_codes + ["_msg_target=_msg_target", "_user=user"]
             return f"await {expr.func_name}({', '.join(all_args)})"
 
         return "None"
