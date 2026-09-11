@@ -77,6 +77,10 @@ def create_arg_parser() -> argparse.ArgumentParser:
     format_parser = subparsers.add_parser("format", help="Форматировать .tl файл")
     format_parser.add_argument("file", help="Путь к файлу .tl")
 
+    # tele docker (генерация Dockerfile и docker-compose.yml)
+    docker_parser = subparsers.add_parser("docker", help="Сгенерировать Dockerfile и docker-compose.yml для деплоя")
+    docker_parser.add_argument("target", nargs="?", default=".", help="Путь к проекту или файлу (по умолчанию: .)")
+
     return parser
 
 
@@ -196,6 +200,9 @@ def main(args: Optional[list[str]] = None) -> int:
     if parsed_args.command == "format":
         return handle_format(parsed_args.file)
 
+    if parsed_args.command == "docker":
+        return handle_docker(parsed_args.target)
+
     return 0
 
 
@@ -300,6 +307,31 @@ def handle_format(file_path: str) -> int:
     path.write_text(formatted, encoding="utf-8")
     print(f"[OK] Файл '{path.name}' отформатирован.")
     return 0
+
+
+def handle_docker(target_path: str = ".") -> int:
+    """Обработка команды tele docker."""
+    from telelang.compiler import ProjectLoader, TeleCompiler
+    from telelang.codegen.docker_emitter import DockerEmitter
+    from telelang.parser.ast_nodes import UserbotDecl
+
+    try:
+        entrypoint, project_dir, project_name = ProjectLoader.resolve_target(target_path)
+        prog, _, _, _, _ = TeleCompiler.load_project(entrypoint)
+        is_userbot = any(isinstance(d, UserbotDecl) for d in prog.declarations)
+
+        df, dc, di = DockerEmitter.emit(project_dir, project_name, is_userbot=is_userbot)
+        print(f"[OK] Docker-окружение успешно сгенерировано для проекта '{project_name}':")
+        print(f"  - {df.name}")
+        print(f"  - {dc.name}")
+        print(f"  - {di.name}")
+        print("\nДля запуска на сервере выполните:")
+        print(f"  cd {project_dir.name}")
+        print("  docker compose up -d --build")
+        return 0
+    except TeleLangError as e:
+        print(e.format_report(), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
