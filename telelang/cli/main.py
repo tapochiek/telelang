@@ -80,61 +80,80 @@ def create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def handle_check(file_path: str) -> int:
+def handle_check(target_path: str) -> int:
     """Обработка команды tele check."""
-    path = Path(file_path).resolve()
+    from telelang.compiler import ProjectLoader
     try:
-        TeleCompiler.compile_file(path)
-        print(f"[OK] Файл '{path.name}' успешно прошёл проверку синтаксиса и семантики.")
+        entrypoint, project_dir, project_name = ProjectLoader.resolve_target(target_path)
+        prog, resolver, _, _, _ = TeleCompiler.load_project(entrypoint)
+        files_cnt = len(resolver.resolved_files)
+        print(f"[OK] Проект '{project_name}' (точка входа: '{entrypoint.name}', файлов: {files_cnt}) успешно прошёл проверку.")
         return 0
     except TeleLangError as e:
         print(e.format_report(), file=sys.stderr)
         return 1
 
 
-def handle_build(file_path: str, output_path: Optional[str] = None) -> int:
+def handle_build(target_path: str, output_path: Optional[str] = None) -> int:
     """Обработка команды tele build."""
-    path = Path(file_path).resolve()
-    try:
-        _, python_code = TeleCompiler.compile_file(path)
+    from telelang.compiler import ProjectLoader
+    from telelang.codegen.project_emitter import ProjectEmitter
 
-        if output_path:
+    try:
+        entrypoint, project_dir, project_name = ProjectLoader.resolve_target(target_path)
+
+        raw_target = Path(target_path).resolve()
+
+        # 1. Если был передан одиночный файл и указан явный output_path:
+        if raw_target.is_file() and output_path:
             out = Path(output_path).resolve()
             if out.is_dir() or output_path.endswith("/") or output_path.endswith("\\") or out.suffix != ".py":
                 out.mkdir(parents=True, exist_ok=True)
-                target = out / f"{path.stem}.py"
+                target = out / f"{entrypoint.stem}.py"
             else:
                 out.parent.mkdir(parents=True, exist_ok=True)
                 target = out
-        else:
-            gen_dir = path.parent / "generated"
-            gen_dir.mkdir(parents=True, exist_ok=True)
-            target = gen_dir / f"{path.stem}.py"
+            _, python_code = TeleCompiler.compile_file(entrypoint)
+            target.write_text(python_code, encoding="utf-8")
+            print(f"[OK] Успешно скомпилировано в '{target}'.")
+            return 0
 
-        target.write_text(python_code, encoding="utf-8")
-        print(f"[OK] Успешно скомпилировано в '{target}'.")
+        # 2. По умолчанию: компиляция в автономную структуру проекта Python (<проект>_py/)
+        emitter = ProjectEmitter(target_path, output_dir=output_path)
+        out_dir = emitter.emit_project()
+        print(f"[OK] Проект успешно скомпилирован в чистый Python: '{out_dir}'.")
+        print("  Сгенерированные файлы:")
+        for p in sorted(out_dir.rglob("*.py")):
+            rel = p.relative_to(out_dir)
+            print(f"    - {rel}")
+        print("    - requirements.txt")
+        print("    - README.md")
+        print(f"\nДля запуска перейдите в папку и выполните:")
+        print(f"  cd {out_dir.name}")
+        print(f"  python main.py")
         return 0
     except TeleLangError as e:
         print(e.format_report(), file=sys.stderr)
         return 1
 
 
-def handle_run(file_path: str, token: Optional[str] = None) -> int:
+def handle_run(target_path: str, token: Optional[str] = None) -> int:
     """Обработка команды tele run."""
-    path = Path(file_path).resolve()
+    from telelang.compiler import ProjectLoader
     try:
-        BotRunner.run_file(path, cli_token=token)
+        entrypoint, _, _ = ProjectLoader.resolve_target(target_path)
+        BotRunner.run_file(entrypoint, cli_token=token)
         return 0
     except TeleLangError as e:
         print(e.format_report(), file=sys.stderr)
         return 1
 
 
-def handle_dev(file_path: str, token: Optional[str] = None) -> int:
+def handle_dev(target_path: str, token: Optional[str] = None) -> int:
     """Обработка команды tele dev (hot-reload)."""
     from telelang.runtime.devwatch import DevWatcher
     try:
-        watcher = DevWatcher(file_path, cli_token=token)
+        watcher = DevWatcher(target_path, cli_token=token)
         watcher.watch()
         return 0
     except (KeyboardInterrupt, SystemExit):
@@ -180,12 +199,13 @@ def main(args: Optional[list[str]] = None) -> int:
     return 0
 
 
-def handle_test(file_path: str) -> int:
+def handle_test(target_path: str) -> int:
     """Обработка команды tele test (интерактивный локальный эмулятор)."""
-    path = Path(file_path).resolve()
+    from telelang.compiler import ProjectLoader
     try:
+        entrypoint, _, _ = ProjectLoader.resolve_target(target_path)
         from telelang.testing.mock_engine import MockRunner
-        runner = MockRunner(path)
+        runner = MockRunner(entrypoint)
         runner.run_interactive()
         return 0
     except TeleLangError as e:
@@ -196,13 +216,19 @@ def handle_test(file_path: str) -> int:
         return 1
 
 
-def handle_stats(file_path: str) -> int:
+def handle_stats(target_path: str) -> int:
     """Обработка команды tele stats (аналитика использования бота)."""
-    path = Path(file_path).resolve()
+    from telelang.compiler import ProjectLoader
+    try:
+        entrypoint, project_dir, project_name = ProjectLoader.resolve_target(target_path)
+    except TeleLangError as e:
+        print(e.format_report(), file=sys.stderr)
+        return 1
+
     print("=" * 55)
-    print(f"  📊 TeleLang Аналитика: {path.name}")
+    print(f"  📊 TeleLang Аналитика: {project_name} ({entrypoint.name})")
     print("=" * 55)
-    db_file = path.parent / "database" / "bot.db"
+    db_file = project_dir / "database" / "bot.db"
     if not db_file.exists():
         print("  [Информация]: База данных бота ещё не создана (нет активности).")
         print("  Пользователей: 0")
