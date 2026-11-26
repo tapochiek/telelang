@@ -20,6 +20,7 @@ from telelang.parser.ast_nodes import (
     OnMessageDecl,
     Program,
     DeleteMessageStmt,
+    PinMessageStmt,
     SendStmt,
     Stmt,
     StringLiteral,
@@ -173,6 +174,8 @@ class TelethonEmitter:
         for stmt in block.statements:
             if isinstance(stmt, DeleteMessageStmt):
                 lines.append(f"{pad}await _event.message.delete()")
+            elif isinstance(stmt, PinMessageStmt):
+                lines.append(f"{pad}await _event.message.pin(notify=False)")
             elif isinstance(stmt, SendStmt):
                 msg_code = emit_send_text(stmt.message, self._emit_expression)
                 lines.append(f"{pad}await _event.respond({msg_code})")

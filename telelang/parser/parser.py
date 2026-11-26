@@ -36,6 +36,7 @@ from telelang.parser.ast_nodes import (
     SaveStmt,
     SendMediaStmt,
     DeleteMessageStmt,
+    PinMessageStmt,
     SendStmt,
     SetStateStmt,
     StateDecl,
@@ -592,12 +593,14 @@ class Parser:
     def _parse_statement(self) -> Stmt:
         tok = self._current()
 
-        if tok.type == TokenType.IDENTIFIER and tok.value == "delete" and self._peek().type == TokenType.MESSAGE:
+        if tok.type == TokenType.IDENTIFIER and tok.value in ("delete", "pin") and self._peek().type == TokenType.MESSAGE:
             if not self.in_message_handler:
                 raise TeleLangSyntaxError(
-                    "delete message доступно внутри command и on message.", tok.span, self.source
+                    f"{tok.value} message доступно внутри command и on message.", tok.span, self.source
                 )
             self.pos += 2
+            if tok.value == "pin":
+                return PinMessageStmt(span=tok.span)
             return DeleteMessageStmt(span=tok.span)
 
         if tok.type == TokenType.SEND:
