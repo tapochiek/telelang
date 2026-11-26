@@ -35,6 +35,7 @@ from telelang.parser.ast_nodes import (
     RolesDecl,
     SaveStmt,
     SendMediaStmt,
+    DeleteMessageStmt,
     SendStmt,
     SetStateStmt,
     StateDecl,
@@ -89,6 +90,7 @@ class Parser:
         self.source = source_code
         self.file_path = file_path
         self.pos = 0
+        self.in_message_handler = False
 
     def _current(self) -> Token:
         if self.pos < len(self.tokens):
@@ -144,6 +146,8 @@ class Parser:
 
     def _parse_declaration(self) -> Declaration:
         tok = self._current()
+
+        self.in_message_handler = tok.type in (TokenType.COMMAND, TokenType.ON)
 
         if tok.type == TokenType.IMPORT:
             return self._parse_import_decl()
@@ -587,6 +591,14 @@ class Parser:
 
     def _parse_statement(self) -> Stmt:
         tok = self._current()
+
+        if tok.type == TokenType.IDENTIFIER and tok.value == "delete" and self._peek().type == TokenType.MESSAGE:
+            if not self.in_message_handler:
+                raise TeleLangSyntaxError(
+                    "delete message доступно внутри command и on message.", tok.span, self.source
+                )
+            self.pos += 2
+            return DeleteMessageStmt(span=tok.span)
 
         if tok.type == TokenType.SEND:
             return self._parse_send_stmt()

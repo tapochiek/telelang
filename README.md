@@ -420,6 +420,18 @@ send video_note "assets/circle.mp4"
 send document "assets/report.pdf"
 ```
 
+### `delete message`
+
+Удаляет текущее сообщение внутри `command` или `on message`. В супергруппе для удаления чужих сообщений боту нужно право администратора `can_delete_messages`.
+
+```telelang
+on message {
+    if message.text == "тестовый спам" {
+        delete message
+    }
+}
+```
+
 ### `send to`
 Отправка сообщения в конкретный чат по ID:
 ```telelang

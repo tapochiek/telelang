@@ -19,6 +19,7 @@ from telelang.parser.ast_nodes import (
     NumberLiteral,
     OnMessageDecl,
     Program,
+    DeleteMessageStmt,
     SendStmt,
     Stmt,
     StringLiteral,
@@ -170,7 +171,9 @@ class TelethonEmitter:
         pad = " " * indent
 
         for stmt in block.statements:
-            if isinstance(stmt, SendStmt):
+            if isinstance(stmt, DeleteMessageStmt):
+                lines.append(f"{pad}await _event.message.delete()")
+            elif isinstance(stmt, SendStmt):
                 msg_code = emit_send_text(stmt.message, self._emit_expression)
                 lines.append(f"{pad}await _event.respond({msg_code})")
             elif isinstance(stmt, VariableAssignStmt):
