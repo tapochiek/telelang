@@ -102,6 +102,11 @@ class Block(Stmt):
 
 
 @dataclass(frozen=True)
+class DeleteMessageStmt(Stmt):
+    """Удалить сообщение текущего обработчика."""
+
+
+@dataclass(frozen=True)
 class SendStmt(Stmt):
     """Инструкция отправки сообщения: send "..."."""
     message: Expr

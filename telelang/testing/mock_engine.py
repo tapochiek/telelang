@@ -19,6 +19,7 @@ from telelang.parser.ast_nodes import (
     StringLiteral,
     VariableAssignStmt,
     OnMessageDecl,
+    DeleteMessageStmt,
     SendStmt,
     ButtonsBlock,
     SendMediaStmt,
@@ -98,7 +99,9 @@ class MockRunner:
         if variables is None:
             variables = {}
         for stmt in block.statements:
-            if isinstance(stmt, SendStmt):
+            if isinstance(stmt, DeleteMessageStmt):
+                print("Bot > [удалено текущее сообщение]")
+            elif isinstance(stmt, SendStmt):
                 msg = str(self._eval_value(stmt.message, incoming_text, variables))
                 print(f"Bot > {msg}")
                 responses.append(msg)
