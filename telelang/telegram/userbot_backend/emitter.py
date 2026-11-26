@@ -20,6 +20,7 @@ from telelang.parser.ast_nodes import (
     OnMessageDecl,
     Program,
     DeleteMessageStmt,
+    BanUserStmt,
     PinMessageStmt,
     SendStmt,
     Stmt,
@@ -174,6 +175,11 @@ class TelethonEmitter:
         for stmt in block.statements:
             if isinstance(stmt, DeleteMessageStmt):
                 lines.append(f"{pad}await _event.message.delete()")
+            elif isinstance(stmt, BanUserStmt):
+                lines.extend([
+                    f"{pad}if _event.is_group and not _event.out and (_event.sender_id or 0) > 0:",
+                    f"{pad}    await _event.client.edit_permissions(_event.chat_id, _event.sender_id, view_messages=False)",
+                ])
             elif isinstance(stmt, PinMessageStmt):
                 lines.append(f"{pad}await _event.message.pin(notify=False)")
             elif isinstance(stmt, SendStmt):
