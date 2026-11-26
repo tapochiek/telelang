@@ -39,6 +39,7 @@ from telelang.parser.ast_nodes import (
     DeleteMessageStmt,
     BanUserStmt,
     MuteUserStmt,
+    KickUserStmt,
     PinMessageStmt,
     SendStmt,
     SetStateStmt,
@@ -610,13 +611,15 @@ class Parser:
         tok = self._current()
 
         target = self._peek()
-        if (tok.type == TokenType.IDENTIFIER and tok.value in ("ban", "mute")
+        if (tok.type == TokenType.IDENTIFIER and tok.value in ("ban", "mute", "kick")
                 and target.type == TokenType.IDENTIFIER and target.value == "user"):
             if not self.in_message_handler:
                 raise TeleLangSyntaxError(f"{tok.value} user доступно внутри command и on message.", tok.span, self.source)
             self.pos += 2
             if tok.value == "ban":
                 return BanUserStmt(span=tok.span)
+            if tok.value == "kick":
+                return KickUserStmt(span=tok.span)
             return self._parse_mute_duration(tok)
 
         if tok.type == TokenType.IDENTIFIER and tok.value in ("delete", "pin") and self._peek().type == TokenType.MESSAGE:

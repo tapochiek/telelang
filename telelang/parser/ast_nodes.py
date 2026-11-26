@@ -118,6 +118,11 @@ class MuteUserStmt(Stmt):
 
 
 @dataclass(frozen=True)
+class KickUserStmt(Stmt):
+    """Удалить автора сообщения из супергруппы с возможностью вернуться."""
+
+
+@dataclass(frozen=True)
 class PinMessageStmt(Stmt):
     """Закрепить текущее сообщение."""
 

@@ -22,6 +22,7 @@ from telelang.parser.ast_nodes import (
     DeleteMessageStmt,
     BanUserStmt,
     MuteUserStmt,
+    KickUserStmt,
     PinMessageStmt,
     SendStmt,
     Stmt,
@@ -189,6 +190,11 @@ class TelethonEmitter:
                     f"{pad}        _event.chat_id, _event.sender_id, until_date=_mute_duration(minutes={stmt.minutes}),",
                     f"{pad}        send_messages=False,",
                     f"{pad}    )",
+                ])
+            elif isinstance(stmt, KickUserStmt):
+                lines.extend([
+                    f"{pad}if _event.is_group and _event.is_channel and not _event.out and (_event.sender_id or 0) > 0:",
+                    f"{pad}    await _event.client.kick_participant(_event.chat_id, _event.sender_id)",
                 ])
             elif isinstance(stmt, PinMessageStmt):
                 lines.append(f"{pad}await _event.message.pin(notify=False)")
