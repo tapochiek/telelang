@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  modular_bot_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: modular_bot_container
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./database:/app/database
+      - ./sessions:/app/sessions
+    environment:
+      - PYTHONUNBUFFERED=1

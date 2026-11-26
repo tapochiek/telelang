@@ -14,20 +14,21 @@ from telelang.errors import TeleLangError
 class DevWatcher:
     """Отслеживает изменения .tl-файлов и автоматически перезапускает бота."""
 
-    def __init__(self, file_path: str | Path, cli_token: Optional[str] = None):
-        self.file_path = Path(file_path).resolve()
+    def __init__(self, target_path: str | Path, cli_token: Optional[str] = None):
+        from telelang.compiler import ProjectLoader
+        self.entrypoint, self.watch_dir, self.project_name = ProjectLoader.resolve_target(target_path)
+        self.file_path = self.entrypoint
         self.cli_token = cli_token
         self.process: Optional[subprocess.Popen] = None
-        self.watch_dir = self.file_path.parent
         self._last_mtimes: dict[Path, float] = {}
 
     def get_tracked_files(self) -> list[Path]:
-        """Возвращает список всех .tl и .env файлов в директории проекта."""
+        """Возвращает список всех .tl и .env файлов в директории проекта рекурсивно."""
         tracked = []
-        if self.file_path.exists():
-            tracked.append(self.file_path)
+        if self.entrypoint.exists():
+            tracked.append(self.entrypoint)
 
-        for p in self.watch_dir.glob("*.tl"):
+        for p in self.watch_dir.rglob("*.tl"):
             if p not in tracked:
                 tracked.append(p)
 

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
+from telelang.codegen.project_emitter import ProjectEmitter
 from telelang.compiler import TeleCompiler
 from telelang.errors import TeleLangSyntaxError
 from telelang.testing.mock_engine import MockRunner
@@ -58,6 +59,22 @@ class TestStdlib(unittest.TestCase):
                     asyncio.run(namespace["_handle_on_message_0"](event))
                     self.assertEqual([call.args[0] for call in reply.await_args_list], EXPECTED)
                     self.assertEqual([call.args for call in randint.call_args_list], [(1, 6), (4, 4)])
+
+    def test_modular_build(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "main.tl").write_text('bot "Std" {} import "messages.tl" ' + BODY, encoding="utf-8")
+            (root / "messages.tl").write_text(BODY, encoding="utf-8")
+            output = ProjectEmitter(root, root / "build").emit_project()
+            for filename in ("main.py", "messages.py"):
+                with self.subTest(filename=filename):
+                    code = (output / filename).read_text(encoding="utf-8")
+                    tree = ast.parse(code)
+                    used = {node.id for node in ast.walk(tree)
+                            if isinstance(node, ast.Name) and node.id.startswith("_tl_")}
+                    imported = {node.asname for node in ast.walk(tree) if isinstance(node, ast.alias)}
+                    self.assertEqual(used, {"_tl_builtin", "_tl_randint", "_tl_clock"})
+                    self.assertTrue(used <= imported)
 
     def test_mock_runner(self):
         with TemporaryDirectory() as directory:
