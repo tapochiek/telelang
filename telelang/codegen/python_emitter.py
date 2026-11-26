@@ -37,6 +37,7 @@ from telelang.parser.ast_nodes import (
     DeleteMessageStmt,
     BanUserStmt,
     MuteUserStmt,
+    KickUserStmt,
     PinMessageStmt,
     SendStmt,
     SetStateStmt,
@@ -563,6 +564,11 @@ class PythonEmitter:
                     f"{pad}        permissions=_MutePermissions(can_send_messages=False),",
                     f"{pad}        until_date=_mute_duration(minutes={stmt.minutes}),",
                     f"{pad}    )",
+                ])
+            elif isinstance(stmt, KickUserStmt):
+                lines.extend([
+                    f"{pad}if _msg_target.chat.type == 'supergroup' and _msg_target.from_user and not _msg_target.sender_chat:",
+                    f"{pad}    await _msg_target.bot.unban_chat_member(chat_id=_msg_target.chat.id, user_id=_msg_target.from_user.id, only_if_banned=False)",
                 ])
             elif isinstance(stmt, PinMessageStmt):
                 lines.append(f"{pad}await _msg_target.pin(disable_notification=True)")

@@ -105,3 +105,36 @@ class UserModerationTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()) as output:
                 runner.handle_input("test")
             self.assertIn(f"мут пользователя {runner.user_id} на 30 мин.", output.getvalue())
+
+    def test_kick_bot(self):
+        run = handler("bot", "kick user")
+        message = SimpleNamespace(bot=AsyncMock(), chat=SimpleNamespace(type="private", id=-10),
+                                  from_user=SimpleNamespace(id=7), sender_chat=None)
+        asyncio.run(run(message))
+        message.chat.type = "supergroup"
+        message.sender_chat = message.chat
+        asyncio.run(run(message))
+        message.bot.unban_chat_member.assert_not_awaited()
+        message.sender_chat = None
+        asyncio.run(run(message))
+        message.bot.unban_chat_member.assert_awaited_once_with(chat_id=-10, user_id=7, only_if_banned=False)
+
+    def test_kick_userbot(self):
+        run = handler("userbot", "kick user")
+        event = SimpleNamespace(client=AsyncMock(), chat_id=-10, sender_id=7, is_group=True,
+                                is_channel=True, out=True, message=None, get_sender=AsyncMock())
+        asyncio.run(run(event))
+        event.out = False
+        asyncio.run(run(event))
+        event.client.kick_participant.assert_awaited_once_with(-10, 7)
+
+    def test_kick_context_and_mock(self):
+        with self.assertRaisesRegex(TeleLangSyntaxError, "kick user"):
+            TeleCompiler.compile_source('bot "Test" {} every 1 minutes { kick user }')
+        with TemporaryDirectory() as directory:
+            file = Path(directory) / "bot.tl"
+            file.write_text('bot "Test" {} on message { kick user }')
+            runner = MockRunner(file)
+            with redirect_stdout(io.StringIO()) as output:
+                runner.handle_input("test")
+            self.assertIn(f"кик пользователя {runner.user_id}", output.getvalue())
