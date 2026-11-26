@@ -511,6 +511,21 @@ command "/catalog" {
 }
 ```
 
+### `on webapp_data`
+
+Mini App, открытая кнопкой `webapp(...)`, может вызвать `Telegram.WebApp.sendData("catalog")`.
+Бот получает исходную строку в переменной `webapp_data`. Данные приходят от клиента: проверяйте их перед выполнением действий.
+
+```telelang
+on webapp_data {
+    if webapp_data == "catalog" {
+        send "Каталог выбран"
+    }
+}
+```
+
+Для проверки в `tele test` введите `:webapp catalog`.
+
 ### `ask` и `save`
 Запуск FSM-диалога:
 ```telelang

@@ -287,8 +287,9 @@ class StateDecl(Declaration):
 
 @dataclass(frozen=True)
 class OnMessageDecl(Declaration):
-    """Обработчик входящих сообщений: on message { ... }."""
+    """Обработчик обычного сообщения или ответа Mini App."""
     body: Block
+    webapp_data: bool = False
 
 
 @dataclass(frozen=True)

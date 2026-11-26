@@ -320,14 +320,15 @@ class Parser:
 
     def _parse_on_decl(self) -> OnMessageDecl:
         on_tok = self._expect(TokenType.ON, "Ожидалось ключевое слово 'on'.")
-        self._expect(
-            TokenType.MESSAGE,
-            "После 'on' ожидается тип события, например: on message { ... }.",
-            hint="Пример: on message { ... }",
-        )
+        event = self._current()
+        webapp_data = event.type == TokenType.IDENTIFIER and event.value == "webapp_data"
+        if webapp_data:
+            self.pos += 1
+        else:
+            self._expect(TokenType.MESSAGE, "После on ожидается message или webapp_data.")
         body = self._parse_block()
         span = SourceSpan(on_tok.span.line, on_tok.span.column, 10, self.file_path)
-        return OnMessageDecl(body=body, span=span)
+        return OnMessageDecl(body=body, webapp_data=webapp_data, span=span)
 
     def _parse_function_decl(self) -> FunctionDecl:
         fn_tok = self._expect(TokenType.FUNCTION, "Ожидалось ключевое слово 'function'.")

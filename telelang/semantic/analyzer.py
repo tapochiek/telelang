@@ -130,6 +130,8 @@ class SemanticAnalyzer:
             self._check_block(cmd.body)
 
         for on_msg in self.on_messages:
+            if on_msg.webapp_data and self.userbot_decl:
+                raise TeleLangSemanticError("on webapp_data доступно только ботам.", on_msg.span, self.source)
             self._check_block(on_msg.body)
 
         for fn in self.functions.values():
