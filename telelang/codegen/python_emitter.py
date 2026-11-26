@@ -765,7 +765,10 @@ class PythonEmitter:
             if btn.icon_emoji and not label_text.startswith(btn.icon_emoji):
                 label_text = f"{btn.icon_emoji} {label_text}"
 
-            if isinstance(btn.target, FunctionCallExpr) and btn.target.func_name == "url":
+            if btn.is_webapp:
+                url = btn.target.args[0].value
+                lines.append(f"{pad}_kb_builder.append([types.KeyboardButton(text={label_text!r}, web_app=types.WebAppInfo(url={url!r}))])")
+            elif isinstance(btn.target, FunctionCallExpr) and btn.target.func_name == "url":
                 url_val = self._emit_expression(btn.target.args[0]) if btn.target.args else "''"
                 lines.append(
                     f"{pad}_kb_builder.append([InlineKeyboardButton(text={label_text!r}, url={url_val})])"
@@ -782,7 +785,10 @@ class PythonEmitter:
                     f"{pad}_kb_builder.append([InlineKeyboardButton(text={label_text!r}, callback_data='cb_noop')])"
                 )
 
-        lines.append(f"{pad}_keyboard = InlineKeyboardMarkup(inline_keyboard=_kb_builder)")
+        if buttons_block.buttons and buttons_block.buttons[0].is_webapp:
+            lines.append(f"{pad}_keyboard = types.ReplyKeyboardMarkup(keyboard=_kb_builder, resize_keyboard=True)")
+        else:
+            lines.append(f"{pad}_keyboard = InlineKeyboardMarkup(inline_keyboard=_kb_builder)")
         return lines
 
     def _emit_expression(self, expr: Expr) -> str:

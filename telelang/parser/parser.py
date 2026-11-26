@@ -1,6 +1,7 @@
 """Синтаксический анализатор (Parser) TeleLang (Этап 3)."""
 
 from __future__ import annotations
+from urllib.parse import urlsplit
 from typing import Any, Optional
 from telelang.errors import SourceSpan, TeleLangSyntaxError
 from telelang.lexer.tokens import Token, TokenType
@@ -913,7 +914,22 @@ class Parser:
                 icon_emoji = opts.get("icon_emoji")
 
             btn_span = SourceSpan(label_tok.span.line, label_tok.span.column, len(label_tok.value), self.file_path)
-            buttons.append(ButtonDef(label=label_tok.value, target=target, style=style, icon_emoji=icon_emoji, span=btn_span))
+            button = ButtonDef(label=label_tok.value, target=target, style=style, icon_emoji=icon_emoji, span=btn_span)
+            if button.is_webapp:
+                args = target.args
+                if len(args) != 1 or not isinstance(args[0], StringLiteral):
+                    raise TeleLangSyntaxError("webapp ожидает один HTTPS-адрес в кавычках.", btn_span, self.source)
+                url = args[0].value
+                try:
+                    parsed = urlsplit(url)
+                    valid = parsed.scheme == "https" and parsed.hostname and not any(c.isspace() for c in url)
+                except ValueError:
+                    valid = False
+                if not valid:
+                    raise TeleLangSyntaxError("Укажите HTTPS-адрес Mini App.", btn_span, self.source)
+            if buttons and buttons[0].is_webapp != button.is_webapp:
+                raise TeleLangSyntaxError("Кнопки Mini App требуют отдельной клавиатуры.", btn_span, self.source)
+            buttons.append(button)
 
         self._expect(TokenType.RBRACE, "Ожидался символ '}' для закрытия блока buttons.")
         span = SourceSpan(btn_tok.span.line, btn_tok.span.column, 7, self.file_path)

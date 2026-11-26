@@ -193,6 +193,10 @@ class ButtonDef(ASTNode):
     style: Optional[str] = None
     icon_emoji: Optional[str] = None
 
+    @property
+    def is_webapp(self) -> bool:
+        return isinstance(self.target, FunctionCallExpr) and self.target.func_name == "webapp"
+
 
 @dataclass(frozen=True)
 class ButtonsBlock(Stmt):
