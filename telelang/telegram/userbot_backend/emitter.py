@@ -197,7 +197,14 @@ class TelethonEmitter:
                     f"{pad}    await _event.client.kick_participant(_event.chat_id, _event.sender_id)",
                 ])
             elif isinstance(stmt, PinMessageStmt):
-                lines.append(f"{pad}await _event.message.pin(notify=False)")
+                if stmt.reply:
+                    lines.extend([
+                        f"{pad}_reply = await _event.message.get_reply_message()",
+                        f"{pad}if _reply is not None and _reply.chat_id == _event.chat_id:",
+                        f"{pad}    await _reply.pin(notify=False)",
+                    ])
+                else:
+                    lines.append(f"{pad}await _event.message.pin(notify=False)")
             elif isinstance(stmt, SendStmt):
                 msg_code = emit_send_text(stmt.message, self._emit_expression)
                 lines.append(f"{pad}await _event.respond({msg_code})")

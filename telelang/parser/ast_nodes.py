@@ -124,7 +124,8 @@ class KickUserStmt(Stmt):
 
 @dataclass(frozen=True)
 class PinMessageStmt(Stmt):
-    """Закрепить текущее сообщение."""
+    """Закрепить текущее сообщение или сообщение, на которое ответили."""
+    reply: bool = False
 
 
 @dataclass(frozen=True)

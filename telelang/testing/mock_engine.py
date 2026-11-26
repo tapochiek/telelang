@@ -73,7 +73,9 @@ class MockRunner:
                 print("\n[Testing done]")
                 break
 
-            if user_input.startswith(":webapp "):
+            if user_input.startswith(":reply "):
+                self.handle_input(user_input[len(":reply "):], is_reply=True)
+            elif user_input.startswith(":webapp "):
                 self.handle_webapp_data(user_input[len(":webapp "):])
             else:
                 self.handle_input(user_input)
@@ -86,7 +88,7 @@ class MockRunner:
                 break
         return responses
 
-    def handle_input(self, text: str) -> list[str]:
+    def handle_input(self, text: str, *, is_reply: bool = False) -> list[str]:
         responses = []
         matched = False
 
@@ -95,14 +97,14 @@ class MockRunner:
             for decl in self.program.declarations:
                 if isinstance(decl, CommandDecl) and decl.command == cmd_name:
                     matched = True
-                    self._execute_block(decl.body, text, responses)
+                    self._execute_block(decl.body, text, responses, is_reply=is_reply)
                     break
 
         if not matched:
             for decl in self.program.declarations:
                 if isinstance(decl, OnMessageDecl) and not decl.webapp_data:
                     matched = True
-                    self._execute_block(decl.body, text, responses)
+                    self._execute_block(decl.body, text, responses, is_reply=is_reply)
                     break
 
         if not matched:
@@ -110,7 +112,7 @@ class MockRunner:
 
         return responses
 
-    def _execute_block(self, block, incoming_text: str, responses: list[str], variables=None) -> None:
+    def _execute_block(self, block, incoming_text: str, responses: list[str], variables=None, *, is_reply=False) -> None:
         if variables is None:
             variables = {}
         for stmt in block.statements:
@@ -123,7 +125,10 @@ class MockRunner:
             elif isinstance(stmt, KickUserStmt):
                 print(f"Bot > [кик пользователя {self.user_id}]")
             elif isinstance(stmt, PinMessageStmt):
-                print("Bot > [закреплено текущее сообщение]")
+                if not stmt.reply:
+                    print("Bot > [закреплено текущее сообщение]")
+                elif is_reply:
+                    print("Bot > [закреплено исходное сообщение]")
             elif isinstance(stmt, SendStmt):
                 msg = str(self._eval_value(stmt.message, incoming_text, variables))
                 print(f"Bot > {msg}")
@@ -136,7 +141,7 @@ class MockRunner:
                 condition = self._eval_value(stmt.condition, incoming_text, variables)
                 branch = stmt.then_branch if condition else stmt.else_branch
                 if branch is not None:
-                    self._execute_block(branch, incoming_text, responses, variables)
+                    self._execute_block(branch, incoming_text, responses, variables, is_reply=is_reply)
 
             elif isinstance(stmt, ButtonsBlock):
                 print("       [ Клавиатура: ]")

@@ -52,3 +52,41 @@ class PinMessageTests(unittest.TestCase):
         with self.assertRaisesRegex(TeleLangSyntaxError, "pin message"):
             TeleCompiler.compile_source('bot "Pin" {} every 1 minutes { pin message }')
         TeleCompiler.compile_source('bot "Pin" {} on message { pin = 1 send pin }')
+
+    def test_pin_reply(self):
+        for mode in ("bot", "userbot"):
+            with self.subTest(mode=mode):
+                _, code = TeleCompiler.compile_source(f'{mode} "Pin" {{}} command "/pin" {{ pin reply }}')
+                nodes = ast.parse(code).body
+                fn = next(n for n in nodes if getattr(n, "name", "") == "_handle_cmd_pin_0")
+                fn.decorator_list.clear()
+                env = {"_get_user_db": AsyncMock(), "_CtxUser": lambda u: SimpleNamespace(id=7),
+                       "_CtxChat": lambda c: c, "_CtxMsg": lambda event: event.message}
+                exec(compile(ast.Module([fn], []), "<cmd>", "exec", flags=__future__.annotations.compiler_flag), env)
+                original = SimpleNamespace(pin=AsyncMock(), chat_id=5)
+                current = SimpleNamespace(chat=None, from_user=None, reply_to_message=None,
+                                          get_reply_message=AsyncMock(return_value=None), pin=AsyncMock())
+                event = SimpleNamespace(get_sender=AsyncMock(), message=current, chat_id=5)
+                run = env[fn.name]
+                asyncio.run(run(current if mode == "bot" else event))
+                current.reply_to_message = original
+                current.get_reply_message.return_value = original
+                asyncio.run(run(current if mode == "bot" else event))
+                current.pin.assert_not_awaited()
+                if mode == "bot":
+                    original.pin.assert_awaited_once_with(disable_notification=True)
+                else:
+                    original.chat_id = 6
+                    asyncio.run(run(event))
+                    original.pin.assert_awaited_once_with(notify=False)
+
+    def test_mock_pin_reply(self):
+        with TemporaryDirectory() as directory:
+            file = Path(directory) / "bot.tl"
+            file.write_text('bot "Pin" {} command "/pin" { if user.id > 0 { pin reply } }')
+            runner = MockRunner(file)
+            with redirect_stdout(io.StringIO()) as output:
+                runner.handle_input("/pin")
+                self.assertEqual(output.getvalue(), "")
+                runner.handle_input("/pin", is_reply=True)
+            self.assertIn("закреплено исходное сообщение", output.getvalue())
