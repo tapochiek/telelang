@@ -1,4 +1,5 @@
 import __future__
+from datetime import timedelta
 import ast
 import asyncio
 import io
@@ -7,7 +8,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from telelang.compiler import TeleCompiler
 from telelang.errors import TeleLangSyntaxError
@@ -64,3 +65,43 @@ class UserModerationTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()) as output:
                 runner.handle_input("test")
             self.assertIn(f"бан пользователя {runner.user_id}", output.getvalue())
+
+    def test_mute_bot(self):
+        run = handler("bot", "mute user for 30 minutes")
+        message = SimpleNamespace(bot=AsyncMock(), chat=SimpleNamespace(type="group", id=-10),
+                                  from_user=SimpleNamespace(id=7), sender_chat=None)
+        asyncio.run(run(message))
+        message.bot.restrict_chat_member.assert_not_awaited()
+        message.chat.type = "supergroup"
+        sdk = SimpleNamespace(ChatPermissions=SimpleNamespace)
+        with patch.dict("sys.modules", {"aiogram.types": sdk}):
+            asyncio.run(run(message))
+        message.bot.restrict_chat_member.assert_awaited_once_with(
+            chat_id=-10, user_id=7, permissions=SimpleNamespace(can_send_messages=False),
+            until_date=timedelta(minutes=30))
+
+    def test_mute_userbot(self):
+        run = handler("userbot", "mute user for 1 minute")
+        event = SimpleNamespace(client=AsyncMock(), chat_id=-10, sender_id=7, is_group=True,
+                                is_channel=True, out=False, message=None, get_sender=AsyncMock())
+        asyncio.run(run(event))
+        event.client.edit_permissions.assert_awaited_once_with(
+            -10, 7, until_date=timedelta(minutes=1), send_messages=False)
+
+    def test_mute_syntax(self):
+        for suffix in ("", "for 0 minutes", "for 525601 minutes", "for 2.5 minutes",
+                       "for 30 seconds", "until 30 minutes"):
+            with self.subTest(suffix=suffix), self.assertRaises(TeleLangSyntaxError):
+                TeleCompiler.compile_source('bot "Test" {} on message { mute user ' + suffix + ' }')
+        with self.assertRaisesRegex(TeleLangSyntaxError, "mute user"):
+            TeleCompiler.compile_source('bot "Test" {} every 1 minutes { mute user for 1 minute }')
+        TeleCompiler.compile_source('bot "Test" {} command "/limit" { mute user for 525600 minutes }')
+
+    def test_mute_mock(self):
+        with TemporaryDirectory() as directory:
+            file = Path(directory) / "bot.tl"
+            file.write_text('bot "Test" {} on message { mute user for 30 minutes }', encoding="utf-8")
+            runner = MockRunner(file)
+            with redirect_stdout(io.StringIO()) as output:
+                runner.handle_input("test")
+            self.assertIn(f"мут пользователя {runner.user_id} на 30 мин.", output.getvalue())
