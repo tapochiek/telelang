@@ -324,6 +324,8 @@ class Parser:
     def _parse_function_decl(self) -> FunctionDecl:
         fn_tok = self._expect(TokenType.FUNCTION, "Ожидалось ключевое слово 'function'.")
         name_tok = self._expect(TokenType.IDENTIFIER, "Ожидалось имя функции.", hint="Пример: function greet(name) { ... }")
+        if name_tok.value == "random":
+            raise TeleLangSyntaxError("Имя random занято стандартной функцией.", name_tok.span, self.source)
         self._expect(TokenType.LPAREN, "Ожидалась открывающая скобка '(' после имени функции.")
 
         params: list[str] = []
@@ -970,6 +972,10 @@ class Parser:
                     while self._match(TokenType.COMMA):
                         args.append(self._parse_expression())
                 self._expect(TokenType.RPAREN, "Ожидалась закрывающая скобка ')' после аргументов.")
+                if isinstance(expr, MemberAccessExpr) and (expr.is_time_now or expr.member in ("length", "lower", "upper")):
+                    raise TeleLangSyntaxError(f"Свойство .{expr.member} используется без скобок.", expr.span, self.source)
+                if isinstance(expr, Identifier) and expr.name == "random" and len(args) != 2:
+                    raise TeleLangSyntaxError("random ожидает две целые границы.", expr.span, self.source)
                 func_name = expr.name if isinstance(expr, Identifier) else str(expr)
                 span = SourceSpan(expr.span.line, expr.span.column, 1, self.file_path)
                 expr = FunctionCallExpr(func_name=func_name, args=args, span=span)
