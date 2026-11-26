@@ -69,8 +69,11 @@ from telelang.parser.ast_nodes import (
 class PythonEmitter:
     """Транслирует AST-дерево TeleLang в исполняемый Python-код на aiogram 3."""
 
-    def __init__(self, program: Program):
+    def __init__(self, program: Program, *, project_has_webapp_data: bool = False):
         self.program = program
+        self.has_webapp_data = project_has_webapp_data or any(
+            isinstance(decl, OnMessageDecl) and decl.webapp_data for decl in program.declarations
+        )
         self.bot_name: str = "TeleBot"
         self.mode: str = "polling"
         self.webhook_url: str = ""
@@ -455,8 +458,9 @@ class PythonEmitter:
 
     def _emit_state_handler(self, st: StateDecl) -> list[str]:
         func_name = f"_handle_state_{st.name}"
+        exclude_webapp = ", ~F.web_app_data" if self.has_webapp_data else ""
         lines = [
-            f"@router.message(_TeleStates.{st.name})",
+            f"@router.message(_TeleStates.{st.name}{exclude_webapp})",
             f"async def {func_name}(message: types.Message, state: FSMContext):",
             "    _msg_target = message",
             "    user = _CtxUser(message.from_user)",
@@ -474,9 +478,12 @@ class PythonEmitter:
 
     def _emit_on_message(self, on_msg: OnMessageDecl, index: int) -> list[str]:
         func_name = f"_handle_on_message_{index}"
+        message_filter = "~F.web_app_data" if self.has_webapp_data else ""
+        if on_msg.webapp_data:
+            message_filter = "F.web_app_data"
 
         lines = [
-            "@router.message()",
+            f"@router.message({message_filter})",
             f"async def {func_name}(message: types.Message, state: FSMContext = None):",
             "    _msg_target = message",
             "    user = _CtxUser(message.from_user)",
@@ -484,6 +491,8 @@ class PythonEmitter:
             "    chat = _CtxChat(message.chat)",
         ]
 
+        if on_msg.webapp_data:
+            lines.append("    webapp_data = message.web_app_data.data")
         body_lines = self._emit_block(on_msg.body, indent=4)
         if not body_lines:
             body_lines = ["    pass"]

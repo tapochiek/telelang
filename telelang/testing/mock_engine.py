@@ -72,7 +72,18 @@ class MockRunner:
                 print("\n[Testing done]")
                 break
 
-            self.handle_input(user_input)
+            if user_input.startswith(":webapp "):
+                self.handle_webapp_data(user_input[len(":webapp "):])
+            else:
+                self.handle_input(user_input)
+
+    def handle_webapp_data(self, data: str) -> list[str]:
+        responses = []
+        for decl in self.program.declarations:
+            if isinstance(decl, OnMessageDecl) and decl.webapp_data:
+                self._execute_block(decl.body, "", responses, {"webapp_data": data})
+                break
+        return responses
 
     def handle_input(self, text: str) -> list[str]:
         responses = []
@@ -88,7 +99,7 @@ class MockRunner:
 
         if not matched:
             for decl in self.program.declarations:
-                if isinstance(decl, OnMessageDecl):
+                if isinstance(decl, OnMessageDecl) and not decl.webapp_data:
                     matched = True
                     self._execute_block(decl.body, text, responses)
                     break
@@ -192,4 +203,6 @@ class MockRunner:
         val = val.replace("{user.id}", str(self.user_id))
         val = val.replace("{user.username}", self.user_username)
         val = val.replace("{message.text}", incoming_text)
+        if "webapp_data" in variables:
+            val = val.replace("{webapp_data}", str(variables["webapp_data"]))
         return val

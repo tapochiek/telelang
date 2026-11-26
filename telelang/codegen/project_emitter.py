@@ -45,6 +45,9 @@ class ProjectEmitter:
             self.project_name,
         ) = TeleCompiler.load_project(self.target_path)
 
+        self.has_webapp_data = any(
+            isinstance(decl, OnMessageDecl) and decl.webapp_data for decl in self.merged_prog.declarations
+        )
         if output_dir:
             self.output_dir = Path(output_dir).resolve()
         else:
@@ -243,7 +246,7 @@ class ProjectEmitter:
 
     def _emit_child_module(self, prog: Program, target_py: Path, module_name: str) -> bool:
         """Компилирует один модуль проекта в файл .py с Router'ом или сервисными функциями."""
-        emitter = PythonEmitter(prog)
+        emitter = PythonEmitter(prog, project_has_webapp_data=self.has_webapp_data)
         emitter.emit()
 
         has_router = bool(emitter.commands or emitter.on_messages or emitter.callbacks or emitter.states)
@@ -339,7 +342,7 @@ class ProjectEmitter:
         """Генерирует главный исполняемый файл main.py."""
         main_file = self.output_dir / "main.py"
         entry_prog = self.resolver.file_programs.get(self.entrypoint, Program(declarations=[], span=SourceSpan(1, 1)))
-        entry_emitter = PythonEmitter(entry_prog)
+        entry_emitter = PythonEmitter(entry_prog, project_has_webapp_data=self.has_webapp_data)
         entry_emitter.emit()
 
         has_entry_router = bool(entry_emitter.commands or entry_emitter.on_messages or entry_emitter.callbacks)
