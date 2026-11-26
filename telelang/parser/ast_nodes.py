@@ -58,6 +58,10 @@ class MemberAccessExpr(Expr):
     target: Expr
     member: str
 
+    @property
+    def is_time_now(self) -> bool:
+        return isinstance(self.target, Identifier) and self.target.name == "time" and self.member == "now"
+
 
 @dataclass(frozen=True)
 class BinaryExpr(Expr):

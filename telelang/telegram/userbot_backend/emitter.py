@@ -3,6 +3,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
+from telelang.codegen.stdlib import STD_IMPORTS, emit_send_text, emit_std
 from telelang.parser.ast_nodes import (
     BinaryExpr,
     Block,
@@ -61,6 +62,7 @@ class TelethonEmitter:
         lines: list[str] = [
             "# -*- coding: utf-8 -*-",
             "# Сгенерировано компилятором TeleLang (Userbot / Telethon). Не редактируйте вручную.",
+            *STD_IMPORTS,
             "import asyncio",
             "import logging",
             "import os",
@@ -169,7 +171,7 @@ class TelethonEmitter:
 
         for stmt in block.statements:
             if isinstance(stmt, SendStmt):
-                msg_code = self._emit_expression(stmt.message)
+                msg_code = emit_send_text(stmt.message, self._emit_expression)
                 lines.append(f"{pad}await _event.respond({msg_code})")
             elif isinstance(stmt, VariableAssignStmt):
                 val_code = self._emit_expression(stmt.value)
@@ -190,6 +192,10 @@ class TelethonEmitter:
         return lines
 
     def _emit_expression(self, expr: Expr) -> str:
+        std_code = emit_std(expr, self._emit_expression)
+        if std_code is not None:
+            return std_code
+
         if isinstance(expr, StringLiteral):
             val = expr.value
             if "{" in val and "}" in val:

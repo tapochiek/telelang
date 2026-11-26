@@ -556,6 +556,23 @@ log "Пользователь {user.name} нажал кнопку."
 Операторы условий: `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `not`.  
 Интерполяция строк: `"Привет, {user.name}! Твой баланс: {user.coins}"`.
 
+Стандартные выражения можно использовать в обработчиках и командах:
+
+```telelang
+command "/roll" {
+    send random(1, 6)
+    send time.now
+}
+on message {
+    send message.text.lower
+    send message.text.upper
+    send message.text.length
+}
+```
+
+Обе границы `random` включены. Свойства строк пишутся без скобок и поддерживают цепочки.
+`.length` считает кодовые точки Unicode. `time.now` возвращает целое число секунд Unix.
+
 ---
 
 ## 8. Docker & Деплой (`tele docker`)

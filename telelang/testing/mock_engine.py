@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 import os
+import operator
+import random
+import time
 import sys
 from pathlib import Path
 from typing import Any, Optional
 from telelang.compiler import TeleCompiler
 from telelang.parser.ast_nodes import (
+    BinaryExpr,
     CommandDecl,
+    IfStmt,
+    FunctionCallExpr,
+    Identifier,
+    MemberAccessExpr,
+    StringLiteral,
+    VariableAssignStmt,
     OnMessageDecl,
     SendStmt,
     ButtonsBlock,
@@ -84,12 +94,23 @@ class MockRunner:
 
         return responses
 
-    def _execute_block(self, block, incoming_text: str, responses: list[str]) -> None:
+    def _execute_block(self, block, incoming_text: str, responses: list[str], variables=None) -> None:
+        if variables is None:
+            variables = {}
         for stmt in block.statements:
             if isinstance(stmt, SendStmt):
-                msg = self._eval_mock_text(stmt.message, incoming_text)
+                msg = str(self._eval_value(stmt.message, incoming_text, variables))
                 print(f"Bot > {msg}")
                 responses.append(msg)
+
+            elif isinstance(stmt, VariableAssignStmt):
+                variables[stmt.name] = self._eval_value(stmt.value, incoming_text, variables)
+
+            elif isinstance(stmt, IfStmt):
+                condition = self._eval_value(stmt.condition, incoming_text, variables)
+                branch = stmt.then_branch if condition else stmt.else_branch
+                if branch is not None:
+                    self._execute_block(branch, incoming_text, responses, variables)
 
             elif isinstance(stmt, ButtonsBlock):
                 print("       [ Клавиатура: ]")
@@ -118,9 +139,42 @@ class MockRunner:
             elif isinstance(stmt, ReactStmt):
                 print("🤖 Бот > 👍 Поставил реакцию на сообщение")
 
-    def _eval_mock_text(self, expr, incoming_text: str) -> str:
-        raw = getattr(expr, "value", str(expr))
-        val = str(raw)
+    def _eval_value(self, expr, incoming_text: str, variables: dict):
+        if isinstance(expr, BinaryExpr):
+            left = self._eval_value(expr.left, incoming_text, variables)
+            right = self._eval_value(expr.right, incoming_text, variables)
+            operations = {
+                "+": operator.add, "-": operator.sub, "*": operator.mul, "/": operator.truediv,
+                "==": operator.eq, "!=": operator.ne, "<": operator.lt, ">": operator.gt,
+                "<=": operator.le, ">=": operator.ge, "contains": operator.contains,
+            }
+            return operations[expr.op](left, right)
+        if isinstance(expr, Identifier):
+            return variables.get(expr.name, str(expr))
+        if isinstance(expr, FunctionCallExpr) and expr.func_name == "random":
+            low, high = (self._eval_value(arg, incoming_text, variables) for arg in expr.args)
+            return random.randint(low, high)
+        if isinstance(expr, MemberAccessExpr):
+            if expr.is_time_now:
+                return int(time.time())
+            if expr.member in ("length", "lower", "upper"):
+                value = self._eval_value(expr.target, incoming_text, variables)
+                if expr.member == "length":
+                    return str.__len__(value)
+                return str.lower(value) if expr.member == "lower" else str.upper(value)
+            if isinstance(expr.target, Identifier):
+                field = (expr.target.name, expr.member)
+                fields = {
+                    ("message", "text"): incoming_text,
+                    ("user", "id"): self.user_id,
+                    ("user", "username"): self.user_username,
+                    ("user", "name"): self.user_name,
+                }
+                if field in fields:
+                    return fields[field]
+        if not isinstance(expr, StringLiteral):
+            return getattr(expr, "value", str(expr))
+        val = expr.value
         val = val.replace("{user.name}", self.user_name)
         val = val.replace("{user.id}", str(self.user_id))
         val = val.replace("{user.username}", self.user_username)

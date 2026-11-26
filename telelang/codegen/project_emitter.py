@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from telelang.codegen.python_emitter import PythonEmitter
+from telelang.codegen.stdlib import STD_IMPORTS
 from telelang.compiler import TeleCompiler
 from telelang.errors import SourceSpan
 from telelang.parser.ast_nodes import (
@@ -250,6 +251,7 @@ class ProjectEmitter:
         lines = [
             "# -*- coding: utf-8 -*-",
             f"# Сгенерировано компилятором TeleLang: модуль '{module_name}'",
+            *STD_IMPORTS,
             "import os",
             "import sys",
             "from pathlib import Path",
@@ -348,6 +350,7 @@ class ProjectEmitter:
             "# Сгенерировано компилятором TeleLang",
             "import asyncio",
             "import logging",
+            *STD_IMPORTS,
             "import os",
             "import sys",
             "from pathlib import Path",

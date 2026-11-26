@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import time
 from typing import Any, Optional
+from telelang.codegen.stdlib import STD_IMPORTS, emit_send_text, emit_std
 from telelang.parser.ast_nodes import (
     ApiDecl,
     AskStmt,
@@ -128,6 +129,7 @@ class PythonEmitter:
         lines: list[str] = [
             "# -*- coding: utf-8 -*-",
             "# Сгенерировано компилятором TeleLang. Не редактируйте вручную.",
+            *STD_IMPORTS,
             "import asyncio",
             "import logging",
             "import os",
@@ -535,11 +537,11 @@ class PythonEmitter:
                 if buttons_block:
                     kb_lines = self._emit_keyboard_builder(buttons_block, indent=indent)
                     lines.extend(kb_lines)
-                    msg_code = self._emit_expression(stmt.message)
+                    msg_code = emit_send_text(stmt.message, self._emit_expression)
                     lines.append(f"{pad}await _msg_target.answer({msg_code}, reply_markup=_keyboard)")
                     buttons_block = None
                 else:
-                    msg_code = self._emit_expression(stmt.message)
+                    msg_code = emit_send_text(stmt.message, self._emit_expression)
                     lines.append(f"{pad}await _msg_target.answer({msg_code})")
 
             elif isinstance(stmt, SendMediaStmt):
@@ -760,6 +762,10 @@ class PythonEmitter:
         return lines
 
     def _emit_expression(self, expr: Expr) -> str:
+        std_code = emit_std(expr, self._emit_expression)
+        if std_code is not None:
+            return std_code
+
         if isinstance(expr, StringLiteral):
             val = expr.value
             if "{" in val and "}" in val:
