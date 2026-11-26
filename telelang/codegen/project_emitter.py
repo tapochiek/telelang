@@ -356,9 +356,11 @@ class ProjectEmitter:
             "from pathlib import Path",
             "from dotenv import load_dotenv",
             "",
-            "from aiogram import Bot, Dispatcher, Router",
+            "from aiogram import Bot, Dispatcher, Router, types, F",
+            "from aiogram.filters import Command",
+            "from aiogram.fsm.context import FSMContext",
             "from aiogram.fsm.storage.memory import MemoryStorage",
-            "from core import init_db",
+            "from core import init_db, _CtxUser, _CtxChat, _get_user_db",
             "",
         ]
 
@@ -395,14 +397,14 @@ class ProjectEmitter:
         # Если в самом главном файле были объявлены команды
         if has_entry_router:
             lines.append("\n# Хэндлеры, объявленные непосредственно в главном файле")
-            lines.append("main_router = Router(name='main')")
+            lines.append("router = Router(name='main')")
             for idx, cmd in enumerate(entry_emitter.commands):
                 lines.extend(entry_emitter._emit_command(cmd, idx))
                 lines.append("")
             for idx, on_msg in enumerate(entry_emitter.on_messages):
                 lines.extend(entry_emitter._emit_on_message(on_msg, idx))
                 lines.append("")
-            lines.append("dp.include_router(main_router)")
+            lines.append("dp.include_router(router)")
 
         lines.extend([
             "",

@@ -128,7 +128,8 @@ class MockRunner:
                 print("       [ Клавиатура: ]")
                 for btn in stmt.buttons:
                     emoji = f"{btn.icon_emoji} " if btn.icon_emoji else ""
-                    print(f"       🔘 [{emoji}{btn.label}]")
+                    suffix = f" (Mini App: {btn.target.args[0].value})" if btn.is_webapp else ""
+                    print(f"       🔘 [{emoji}{btn.label}]{suffix}")
 
             elif isinstance(stmt, SendMediaStmt):
                 print(f"🤖 Бот > 📁 [Медиа: {stmt.media_type}] {stmt.file_path}")
