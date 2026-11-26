@@ -622,14 +622,15 @@ class Parser:
                 return KickUserStmt(span=tok.span)
             return self._parse_mute_duration(tok)
 
-        if tok.type == TokenType.IDENTIFIER and tok.value in ("delete", "pin") and self._peek().type == TokenType.MESSAGE:
+        pin_reply = tok.value == "pin" and target.type == TokenType.IDENTIFIER and target.value == "reply"
+        if tok.type == TokenType.IDENTIFIER and tok.value in ("delete", "pin") and (target.type == TokenType.MESSAGE or pin_reply):
             if not self.in_message_handler:
                 raise TeleLangSyntaxError(
-                    f"{tok.value} message доступно внутри command и on message.", tok.span, self.source
+                    f"{tok.value} {target.value} доступно внутри command и on message.", tok.span, self.source
                 )
             self.pos += 2
             if tok.value == "pin":
-                return PinMessageStmt(span=tok.span)
+                return PinMessageStmt(reply=pin_reply, span=tok.span)
             return DeleteMessageStmt(span=tok.span)
 
         if tok.type == TokenType.SEND:

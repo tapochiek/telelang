@@ -571,7 +571,13 @@ class PythonEmitter:
                     f"{pad}    await _msg_target.bot.unban_chat_member(chat_id=_msg_target.chat.id, user_id=_msg_target.from_user.id, only_if_banned=False)",
                 ])
             elif isinstance(stmt, PinMessageStmt):
-                lines.append(f"{pad}await _msg_target.pin(disable_notification=True)")
+                if stmt.reply:
+                    lines.extend([
+                        f"{pad}if _msg_target.reply_to_message is not None:",
+                        f"{pad}    await _msg_target.reply_to_message.pin(disable_notification=True)",
+                    ])
+                else:
+                    lines.append(f"{pad}await _msg_target.pin(disable_notification=True)")
             elif isinstance(stmt, SendStmt):
                 if buttons_block:
                     kb_lines = self._emit_keyboard_builder(buttons_block, indent=indent)
