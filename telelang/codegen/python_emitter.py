@@ -35,6 +35,7 @@ from telelang.parser.ast_nodes import (
     SaveStmt,
     SendMediaStmt,
     DeleteMessageStmt,
+    PinMessageStmt,
     SendStmt,
     SetStateStmt,
     StateDecl,
@@ -536,6 +537,8 @@ class PythonEmitter:
 
             if isinstance(stmt, DeleteMessageStmt):
                 lines.append(f"{pad}await _msg_target.delete()")
+            elif isinstance(stmt, PinMessageStmt):
+                lines.append(f"{pad}await _msg_target.pin(disable_notification=True)")
             elif isinstance(stmt, SendStmt):
                 if buttons_block:
                     kb_lines = self._emit_keyboard_builder(buttons_block, indent=indent)

@@ -20,6 +20,7 @@ from telelang.parser.ast_nodes import (
     VariableAssignStmt,
     OnMessageDecl,
     DeleteMessageStmt,
+    PinMessageStmt,
     SendStmt,
     ButtonsBlock,
     SendMediaStmt,
@@ -101,6 +102,8 @@ class MockRunner:
         for stmt in block.statements:
             if isinstance(stmt, DeleteMessageStmt):
                 print("Bot > [удалено текущее сообщение]")
+            elif isinstance(stmt, PinMessageStmt):
+                print("Bot > [закреплено текущее сообщение]")
             elif isinstance(stmt, SendStmt):
                 msg = str(self._eval_value(stmt.message, incoming_text, variables))
                 print(f"Bot > {msg}")

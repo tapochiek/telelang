@@ -107,6 +107,11 @@ class DeleteMessageStmt(Stmt):
 
 
 @dataclass(frozen=True)
+class PinMessageStmt(Stmt):
+    """Закрепить текущее сообщение."""
+
+
+@dataclass(frozen=True)
 class SendStmt(Stmt):
     """Инструкция отправки сообщения: send "..."."""
     message: Expr
