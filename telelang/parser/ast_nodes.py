@@ -107,6 +107,11 @@ class DeleteMessageStmt(Stmt):
 
 
 @dataclass(frozen=True)
+class BanUserStmt(Stmt):
+    """Заблокировать автора текущего сообщения в группе."""
+
+
+@dataclass(frozen=True)
 class PinMessageStmt(Stmt):
     """Закрепить текущее сообщение."""
 
