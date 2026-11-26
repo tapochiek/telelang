@@ -112,6 +112,12 @@ class BanUserStmt(Stmt):
 
 
 @dataclass(frozen=True)
+class MuteUserStmt(Stmt):
+    """Временно запретить автору сообщения писать в супергруппе."""
+    minutes: int
+
+
+@dataclass(frozen=True)
 class PinMessageStmt(Stmt):
     """Закрепить текущее сообщение."""
 

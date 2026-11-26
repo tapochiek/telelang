@@ -36,6 +36,7 @@ from telelang.parser.ast_nodes import (
     SendMediaStmt,
     DeleteMessageStmt,
     BanUserStmt,
+    MuteUserStmt,
     PinMessageStmt,
     SendStmt,
     SetStateStmt,
@@ -542,6 +543,17 @@ class PythonEmitter:
                 lines.extend([
                     f"{pad}if _msg_target.chat.type in ('group', 'supergroup') and _msg_target.from_user and not _msg_target.sender_chat:",
                     f"{pad}    await _msg_target.bot.ban_chat_member(chat_id=_msg_target.chat.id, user_id=_msg_target.from_user.id)",
+                ])
+            elif isinstance(stmt, MuteUserStmt):
+                lines.extend([
+                    f"{pad}if _msg_target.chat.type == 'supergroup' and _msg_target.from_user and not _msg_target.sender_chat:",
+                    f"{pad}    from aiogram.types import ChatPermissions as _MutePermissions",
+                    f"{pad}    from datetime import timedelta as _mute_duration",
+                    f"{pad}    await _msg_target.bot.restrict_chat_member(",
+                    f"{pad}        chat_id=_msg_target.chat.id, user_id=_msg_target.from_user.id,",
+                    f"{pad}        permissions=_MutePermissions(can_send_messages=False),",
+                    f"{pad}        until_date=_mute_duration(minutes={stmt.minutes}),",
+                    f"{pad}    )",
                 ])
             elif isinstance(stmt, PinMessageStmt):
                 lines.append(f"{pad}await _msg_target.pin(disable_notification=True)")

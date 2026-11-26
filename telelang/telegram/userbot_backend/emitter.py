@@ -21,6 +21,7 @@ from telelang.parser.ast_nodes import (
     Program,
     DeleteMessageStmt,
     BanUserStmt,
+    MuteUserStmt,
     PinMessageStmt,
     SendStmt,
     Stmt,
@@ -179,6 +180,15 @@ class TelethonEmitter:
                 lines.extend([
                     f"{pad}if _event.is_group and not _event.out and (_event.sender_id or 0) > 0:",
                     f"{pad}    await _event.client.edit_permissions(_event.chat_id, _event.sender_id, view_messages=False)",
+                ])
+            elif isinstance(stmt, MuteUserStmt):
+                lines.extend([
+                    f"{pad}if _event.is_group and _event.is_channel and not _event.out and (_event.sender_id or 0) > 0:",
+                    f"{pad}    from datetime import timedelta as _mute_duration",
+                    f"{pad}    await _event.client.edit_permissions(",
+                    f"{pad}        _event.chat_id, _event.sender_id, until_date=_mute_duration(minutes={stmt.minutes}),",
+                    f"{pad}        send_messages=False,",
+                    f"{pad}    )",
                 ])
             elif isinstance(stmt, PinMessageStmt):
                 lines.append(f"{pad}await _event.message.pin(notify=False)")

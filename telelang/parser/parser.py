@@ -37,6 +37,7 @@ from telelang.parser.ast_nodes import (
     SendMediaStmt,
     DeleteMessageStmt,
     BanUserStmt,
+    MuteUserStmt,
     PinMessageStmt,
     SendStmt,
     SetStateStmt,
@@ -591,14 +592,30 @@ class Parser:
         span = SourceSpan(open_brace.span.line, open_brace.span.column, 1, self.file_path)
         return Block(statements=statements, span=span)
 
+    def _parse_mute_duration(self, mute: Token) -> MuteUserStmt:
+        keyword = self._expect(TokenType.IDENTIFIER, "Ожидалось for после mute user.")
+        if keyword.value != "for":
+            raise TeleLangSyntaxError("Ожидалось for после mute user.", keyword.span, self.source)
+        amount = self._expect(TokenType.NUMBER, "Укажите длительность мута в минутах.")
+        unit = self._expect(TokenType.IDENTIFIER, "Ожидалось minutes после числа.")
+        if unit.value not in ("minute", "minutes"):
+            raise TeleLangSyntaxError("Длительность мута задаётся в минутах.", unit.span, self.source)
+        if not isinstance(amount.value, int) or not 1 <= amount.value <= 365 * 24 * 60:
+            raise TeleLangSyntaxError("Укажите целое число минут от 1 до 525600.", amount.span, self.source)
+        return MuteUserStmt(minutes=amount.value, span=mute.span)
+
     def _parse_statement(self) -> Stmt:
         tok = self._current()
 
-        if tok.type == TokenType.IDENTIFIER and tok.value == "ban" and self._peek().value == "user" and self._peek().type == TokenType.IDENTIFIER:
+        target = self._peek()
+        if (tok.type == TokenType.IDENTIFIER and tok.value in ("ban", "mute")
+                and target.type == TokenType.IDENTIFIER and target.value == "user"):
             if not self.in_message_handler:
-                raise TeleLangSyntaxError("ban user доступно внутри command и on message.", tok.span, self.source)
+                raise TeleLangSyntaxError(f"{tok.value} user доступно внутри command и on message.", tok.span, self.source)
             self.pos += 2
-            return BanUserStmt(span=tok.span)
+            if tok.value == "ban":
+                return BanUserStmt(span=tok.span)
+            return self._parse_mute_duration(tok)
 
         if tok.type == TokenType.IDENTIFIER and tok.value in ("delete", "pin") and self._peek().type == TokenType.MESSAGE:
             if not self.in_message_handler:

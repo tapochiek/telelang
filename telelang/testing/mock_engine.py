@@ -21,6 +21,7 @@ from telelang.parser.ast_nodes import (
     OnMessageDecl,
     DeleteMessageStmt,
     BanUserStmt,
+    MuteUserStmt,
     PinMessageStmt,
     SendStmt,
     ButtonsBlock,
@@ -105,6 +106,8 @@ class MockRunner:
                 print("Bot > [удалено текущее сообщение]")
             elif isinstance(stmt, BanUserStmt):
                 print(f"Bot > [бан пользователя {self.user_id}]")
+            elif isinstance(stmt, MuteUserStmt):
+                print(f"Bot > [мут пользователя {self.user_id} на {stmt.minutes} мин.]")
             elif isinstance(stmt, PinMessageStmt):
                 print("Bot > [закреплено текущее сообщение]")
             elif isinstance(stmt, SendStmt):
